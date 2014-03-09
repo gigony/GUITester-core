@@ -1,13 +1,12 @@
 *.class
 
 # Package Files #
-aut_ext/**/*.jar
+aut_ext/*.jar
 *.war
 *.ear
-/bin
-/release
-/temp
+bin/
+release/
+temp/
 
 .DS_Store
-plugins/**/*.*
 .git
