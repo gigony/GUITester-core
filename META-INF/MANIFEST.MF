@@ -1,0 +1,5 @@
+Manifest-Version: 1.0
+Created-By: 1.7.0_51 (Oracle Corporation)
+Main-Class: guitesting.main.Main
+Class-Path: lib/args4j-2.0.12.jar lib/swingx-beaninfo-2010_08_22.jar lib/guava-16.0.1.jar lib/xpp3_min-1.1.4c.jar lib/log4j-1.2.16.jar lib/xstream-1.4.1.jar lib/swingx-2010_08_22.jar
+
