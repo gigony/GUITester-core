@@ -24,6 +24,7 @@ package guitesting.engine.strategy;
 import guitesting.engine.monitors.IExecutionMonitor;
 import guitesting.engine.testcaseexecutor.TestCaseExecutor;
 import guitesting.ui.GUITester;
+import guitesting.util.IOUtil;
 import guitesting.util.TestLogger;
 import guitesting.util.TestProperty;
 
@@ -36,6 +37,9 @@ public class DefaultStrategy extends AbstractStrategy {
 
   @Override
   public void run(String[] mainArgs) {
+    
+    // initialize workspace
+    IOUtil.configureWorkspaceFiles();
 
     // launch GUITester
     GUITester tester = GUITester.getInstance();

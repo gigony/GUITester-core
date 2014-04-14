@@ -98,8 +98,16 @@ public class GUIModel extends DefaultMutableTreeNode implements Converter, TreeT
   public ArrayList<WindowModel> getActiveWindowList() {
     return getActiveWindowList(this);
   }
+  
+  public ArrayList<WindowModel> getWindowList() {
+    return getWindowList(this,true);
+  }
 
   public static ArrayList<WindowModel> getActiveWindowList(GUIModel rootNode) {
+    return getWindowList(rootNode, false);
+  }
+
+  public static ArrayList<WindowModel> getWindowList(GUIModel rootNode, boolean includeBlockedWindow) {
     ArrayList<WindowModel> result = new ArrayList<WindowModel>();
 
     Enumeration<GUIModel> children = (Enumeration<GUIModel>) rootNode.children();
@@ -109,10 +117,9 @@ public class GUIModel extends DefaultMutableTreeNode implements Converter, TreeT
       if (userObj instanceof WindowModel) {
         WindowModel winModel = (WindowModel) userObj;
 
-        if (!"true".equals(winModel.get("modalblocked")) && "true".equals(winModel.get("displayable"))
-            && "true".equals(winModel.get("visible")))
+        if ((includeBlockedWindow || !"true".equals(winModel.get("modalblocked")))
+            && "true".equals(winModel.get("displayable")) && "true".equals(winModel.get("visible")))
           result.add(winModel);
-
       }
     }
     return result;

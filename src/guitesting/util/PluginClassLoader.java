@@ -20,6 +20,30 @@ public class PluginClassLoader extends URLClassLoader {
     addedPlugins = new HashSet<String>();
   }
 
+  private synchronized void addCompressedPluginFiles(File parentFolder) {
+    if (parentFolder == null || !parentFolder.exists())
+      return;
+
+    for (File f : parentFolder.listFiles()) {
+      String name = f.getName();
+      if (f.isDirectory()) {
+        addCompressedPluginFiles(f);
+      } else {
+        if (name.endsWith(".jar") || name.endsWith(".zip")) {
+          addJarClassFile(f);
+        }
+      }
+    }
+
+  }
+
+  public synchronized void addPluginFolder(String filePath) {
+    if (filePath == null || "".equals(filePath))
+      return;
+    File file = new File(filePath);
+    addPluginFolder(file);
+  }
+
   public synchronized void addPluginFolder(File file) {
     if (file == null || !file.exists())
       return;
@@ -32,25 +56,14 @@ public class PluginClassLoader extends URLClassLoader {
 
     for (File f : file.listFiles()) {
       String name = f.getName();
-      if (f.isDirectory()) {
-        addPluginFolder(f);
-      } else {
+      if (!f.isDirectory()) {
         if (name.endsWith(".class")) {
           addClassFile(f, "");
-        } else if (name.endsWith(".jar") || name.endsWith(".zip")) {
-          addJarClassFile(f);
         }
       }
     }
+    addCompressedPluginFiles(file);
 
-  }
-
-  public synchronized void addPluginFolder(String filePath) {
-    if (filePath == null || "".equals(filePath))
-      return;
-
-    File file = new File(filePath);
-    addPluginFolder(file);
   }
 
   private void addPluginFolder(String filePath, String packageName) {
@@ -138,7 +151,7 @@ public class PluginClassLoader extends URLClassLoader {
         entry = entries.nextElement();
 
         if (entry.getName().endsWith(".class")) {
-          String className = getClassNameFromJar(entry);
+          String className = getFullClassNameFromPathName(entry.getName());
 
           if (getSimpleClassName(className).equals(className)) {
             addedPlugins.add(className);
@@ -162,8 +175,8 @@ public class PluginClassLoader extends URLClassLoader {
     }
   }
 
-  private String getClassNameFromJar(JarEntry classEntry) {
-    return classEntry.getName().replace(".class", "").replace("/", ".");
+  private String getFullClassNameFromPathName(String pathName) {
+    return pathName.replace(".class", "").replace("/", ".");
   }
 
   private String getSimpleClassName(String className) {

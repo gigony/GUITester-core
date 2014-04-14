@@ -22,10 +22,6 @@
 package guitesting.main;
 
 import static org.kohsuke.args4j.ExampleMode.ALL;
-
-import javax.swing.UIManager;
-import javax.swing.UnsupportedLookAndFeelException;
-
 import guitesting.engine.StrategyManager;
 import guitesting.engine.strategy.AbstractStrategy;
 import guitesting.util.TestLogger;
@@ -35,9 +31,11 @@ import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 
 public class Main {
-  public static void main(String args[]) {    
+  public static void main(String args[]) {
     // set default properties before parsing arguments
     TestProperty.setDefaultLog4jProperties();
+    // set original arguments
+    TestProperty.setOriginalArgs(args);
 
     parseArguments(args);
 
@@ -47,10 +45,10 @@ public class Main {
     Thread.currentThread().setContextClassLoader(TestProperty.pluginClassLoader);
     AbstractStrategy strategy = StrategyManager.getInstance().getStrategy(
         TestProperty.propertyStore.get("guitester.strategy"));
-    TestLogger.debug("Strategy: %s",strategy.getClass().getName());
-    TestLogger.debug("main args: %s",TestProperty.propertyStore.get("guitester.main_args", ""));
-    TestLogger.debug("strategy args: %s",TestProperty.propertyStore.get("guitester.strategy_args", ""));
-    
+    TestLogger.debug("Strategy: %s", strategy.getClass().getName());
+    TestLogger.debug("main args: %s", TestProperty.propertyStore.get("guitester.main_args", ""));
+    TestLogger.debug("strategy args: %s", TestProperty.propertyStore.get("guitester.strategy_args", ""));
+
     String[] mainArgs = TestProperty.propertyStore.get("guitester.main_args", "").split(" ");
 
     strategy.run(mainArgs);

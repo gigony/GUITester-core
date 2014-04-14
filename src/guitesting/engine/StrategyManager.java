@@ -70,8 +70,12 @@ public class StrategyManager {
       try {
         strategyClass = (Class<? extends AbstractStrategy>) Class.forName("guitesting.engine.strategy." + name);
       } catch (ClassNotFoundException e) {
-        TestLogger.error("%s", e.getMessage());
-        e.printStackTrace();
+        try {
+          strategyClass = (Class<? extends AbstractStrategy>) Class.forName(name);
+        } catch (ClassNotFoundException e1) {
+          TestLogger.error("%s", e1.getMessage());
+          e.printStackTrace();
+        }
       }
 
       if (strategyClass == null)

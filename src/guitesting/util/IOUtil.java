@@ -41,6 +41,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -49,14 +51,30 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.TimeoutException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 public class IOUtil {
+  public static final Map<String, String> typeAliasMap;
 
+  static {
+    typeAliasMap = new HashMap<String, String>();
+    typeAliasMap.put("void", "V");
+    typeAliasMap.put("int", "I");
+    typeAliasMap.put("long", "J");
+    typeAliasMap.put("float", "F");
+    typeAliasMap.put("double", "D");
+    typeAliasMap.put("byte", "B");
+    typeAliasMap.put("char", "C");
+    typeAliasMap.put("short", "S");
+    typeAliasMap.put("boolean", "Z");
+  }
   public static Random RandomObj = new Random();
 
   public static final byte[] intToByteArray(int value) {
@@ -68,11 +86,16 @@ public class IOUtil {
   }
 
   public static Object loadObject(String dataFile) {
+    return loadObject(dataFile, null);
+  }
+
+  public static Object loadObject(String dataFile, ClassLoader classLoader) {
     Object result = null;
     InputStream is = null;
     try {
-      is = new FileInputStream(dataFile); // is = new BufferedInputStream(new FileInputStream(dataFile), 16384);
-      result = getObject(is);
+      is = new FileInputStream(dataFile); // is = new BufferedInputStream(new FileInputStream(dataFile),
+                                          // 16384);
+      result = getObject(is, classLoader);
       is.close();
       is = null;
     } catch (Throwable e) {
@@ -90,9 +113,13 @@ public class IOUtil {
   }
 
   public static Object getObject(InputStream dataFile) throws IOException {
+    return getObject(dataFile, null);
+  }
+
+  public static Object getObject(InputStream dataFile, ClassLoader classLoader) throws IOException {
     MyObjectInputStream objects = null;
     try {
-      objects = new MyObjectInputStream(dataFile);
+      objects = new MyObjectInputStream(dataFile, classLoader);
       Object data = objects.readObject();
       objects.close();
       objects = null;
@@ -276,10 +303,14 @@ public class IOUtil {
   }
 
   public static Object deSerializeObject(String filename) {
+    return deSerializeObject(filename, null);
+  }
+
+  public static Object deSerializeObject(String filename, ClassLoader classLoader) {
     Object result = null;
     try {
       FileInputStream fis = new FileInputStream(filename);
-      MyObjectInputStream ois = new MyObjectInputStream(fis);
+      MyObjectInputStream ois = new MyObjectInputStream(fis, classLoader);
       Object obj = ois.readObject();
       result = obj;
       ois.close();
@@ -296,6 +327,7 @@ public class IOUtil {
       objOutData = new ByteArrayOutputStream();
       ObjectOutputStream oldOutAnalyzer = new ObjectOutputStream(objOutData);
       oldOutAnalyzer.writeObject(object);
+      oldOutAnalyzer.reset();
       oldOutAnalyzer.close();
       return objOutData;
     } catch (Exception e) {
@@ -305,16 +337,19 @@ public class IOUtil {
   }
 
   public static Object deSerializeObject(ByteArrayOutputStream objOutData) {
+    return deSerializeObject(objOutData, null);
+  }
+
+  public static Object deSerializeObject(ByteArrayOutputStream objOutData, ClassLoader classLoader) {
 
     Object resultObject = null;
     ByteArrayInputStream objInpData = null;
     try {
       objInpData = new ByteArrayInputStream(objOutData.toByteArray());
       // Restore object
-      MyObjectInputStream oldInpAnalyzer = new MyObjectInputStream(objInpData);
+      MyObjectInputStream oldInpAnalyzer = new MyObjectInputStream(objInpData, classLoader);
       resultObject = oldInpAnalyzer.readObject();
-      objInpData.reset();
-      objInpData.close();
+      oldInpAnalyzer.close();
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -322,6 +357,10 @@ public class IOUtil {
   }
 
   public static Object cloneObject(Object object) {
+    return cloneObject(object, null);
+  }
+
+  public static Object cloneObject(Object object, ClassLoader classLoader) {
 
     Object resultObject = null;
     ByteArrayOutputStream objOutData = new ByteArrayOutputStream();
@@ -334,10 +373,9 @@ public class IOUtil {
       oldOutAnalyzer.close();
       objInpData = new ByteArrayInputStream(objOutData.toByteArray());
       // Restore object
-      MyObjectInputStream oldInpAnalyzer = new MyObjectInputStream(objInpData);
+      MyObjectInputStream oldInpAnalyzer = new MyObjectInputStream(objInpData, classLoader);
       resultObject = oldInpAnalyzer.readObject();
-      objInpData.reset();
-      objInpData.close();
+      oldInpAnalyzer.close();
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -480,7 +518,7 @@ public class IOUtil {
           String line;
           try {
             while ((line = ebr.readLine()) != null) {
-              System.out.println(line);
+              System.err.println(line);
             }
           } catch (IOException e) {
             e.printStackTrace();
@@ -490,10 +528,105 @@ public class IOUtil {
 
       int exitVal = process.waitFor();
       if (exitVal != 0) {
-        System.err.println("Execution error in executeCommand()!");
+        System.err.println("Exit value: " + exitVal);
       }
     } catch (Exception e) {
       e.printStackTrace();
+    }
+  }
+
+  public static void executeCommand(List<String> command, String workspaceFolder, int timeout) throws TimeoutException {
+    if (timeout == 0) {
+      executeCommand(command, workspaceFolder);
+      return;
+    }
+
+    ProcessBuilder builder = new ProcessBuilder(command);
+    builder.directory(new File(workspaceFolder)); // workspace folder is the base folder
+    try {
+      Process process;
+      process = builder.start();
+
+      InputStream is = process.getInputStream();
+      InputStream es = process.getErrorStream();
+      InputStreamReader isr = new InputStreamReader(is);
+      InputStreamReader esr = new InputStreamReader(es);
+      final BufferedReader br = new BufferedReader(isr);
+      final BufferedReader ebr = new BufferedReader(esr);
+
+      Thread stdThread = new Thread(new Runnable() {
+
+        @Override
+        public void run() {
+          String line;
+          try {
+            while ((line = br.readLine()) != null) {
+              System.out.println(line);
+            }
+          } catch (Exception e) {
+          }
+        }
+      });
+      stdThread.start();
+      Thread errThread = new Thread(new Runnable() {
+
+        @Override
+        public void run() {
+          String line;
+          try {
+            while ((line = ebr.readLine()) != null) {
+              System.err.println(line);
+            }
+          } catch (Exception e) {
+          }
+        }
+      });
+      errThread.start();
+
+      Worker worker = new Worker(process);
+      worker.start();
+      try {
+        worker.join(timeout);
+        if (worker.exit != null) {
+          if (worker.exit != 0) {
+            System.err.println("Exit value: " + worker.exit);
+          }
+        } else
+          throw new TimeoutException();
+      } catch (InterruptedException ex) {
+
+        worker.interrupt();
+        Thread.currentThread().interrupt();
+        throw ex;
+      } finally {
+        stdThread.interrupt();
+        errThread.interrupt();
+        process.destroy();
+      }
+    } catch (TimeoutException e) {
+      throw e;
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+    // http://stackoverflow.com/questions/808276/how-to-add-a-timeout-value-when-using-javas-runtime-exec
+
+  }
+
+  private static class Worker extends Thread {
+    private final Process process;
+    private Integer exit;
+
+    private Worker(Process process) {
+      this.process = process;
+    }
+
+    public void run() {
+      try {
+        exit = process.waitFor();
+      } catch (InterruptedException ignore) {
+        return;
+      }
     }
   }
 
@@ -758,6 +891,108 @@ public class IOUtil {
         IOUtil.copyFolder(TestProperty.getFolder("config"), workspaceFile);
     } catch (IOException e) {
       e.printStackTrace();
+    }
+  }
+
+  public static List<String> getJVMArguments() {
+    RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
+    List<String> aList = bean.getInputArguments();
+    return aList;
+  }
+
+  /**
+   * Get a collection of class names in a given folder 'file'
+   * 
+   * @param file
+   * @return
+   */
+  public static List<String> getClassNameList(File file) {
+    ArrayList<String> result = new ArrayList<String>();
+    if (file == null || !file.isDirectory())
+      return result;
+
+    addClassNameList(file, "", result);
+    return result;
+  }
+
+  private static void addClassNameList(File file, String classPath, List<String> collection) {
+
+    if (file == null || !file.isDirectory())
+      return;
+    for (File f : file.listFiles()) {
+      String name = f.getName();
+      if (f.isDirectory()) {
+        addClassNameList(new File(file, name), classPath + name + ".", collection);
+      } else {
+        if (name.endsWith(".class")) {
+          String className = classPath + name.substring(0, name.length() - 6);
+          collection.add(className);
+        }
+      }
+    }
+  }
+
+  public static long getUsedMemory() {
+    Runtime runtime = Runtime.getRuntime();
+    long mb = 1024 * 1024;
+    return (runtime.totalMemory() - runtime.freeMemory()) / mb;
+  }
+
+  public static String getMethodSignature(String className, Method m) {
+    // String className = getFullClassName(m.getDeclaringClass());
+    String methodName = m.getName();
+    String typeStr = getMethodTypeSignature(m);
+    StringBuffer buf = new StringBuffer();
+    buf.append(className);
+    buf.append(".");
+    buf.append(methodName);
+    buf.append(typeStr);
+    return buf.toString();
+
+  }
+
+  private static String getMethodTypeSignature(Method m) {
+    Class<?> result = m.getReturnType();
+    Class<?>[] params = m.getParameterTypes();
+    StringBuffer buf = new StringBuffer();
+    buf.append("(");
+    for (int i = 0; i < params.length; i++) {
+      buf.append(makeTypeStr(params[i]));
+    }
+    buf.append(")");
+    buf.append(makeTypeStr(result));
+    return buf.toString();
+
+  }
+
+  public static String getFullClassName(Class<?> c) {
+    Package pkg = c.getPackage();
+    String packageName = (pkg == null) ? "" : pkg.getName();
+    if (packageName == null || packageName.equals(""))
+      return c.getName();
+    else
+      return packageName + "." + c.getName();
+
+  }
+
+  public static String makeTypeStr(Class<?> c) {
+    String name = c.getName();
+    String alias = typeAliasMap.get(name);
+    if (alias != null) {
+      return alias;
+    } else {
+
+      return makeTypeStr(name);
+    }
+  }
+
+  public static String makeTypeStr(String name) {
+    if (name.startsWith("[")) {
+      return name.replace('.', '/');
+    } else if (!name.endsWith(";")) {
+      return "L" + name.replace('.', '/') + ";";
+    } else {
+      return name;
     }
   }
 

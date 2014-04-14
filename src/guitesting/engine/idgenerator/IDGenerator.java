@@ -27,7 +27,10 @@ import guitesting.model.event.EventModel;
 import com.google.common.hash.HashCode;
 
 public abstract class IDGenerator {
-    public abstract HashCode getComponentHash(ComponentModel compModel, HashCode parentHashCode);
-    public abstract HashCode getEventHash(EventModel evtModel);    
-    public abstract HashCode add(HashCode o1, HashCode o2);    
+  public abstract HashCode getComponentHash(ComponentModel compModel, HashCode windowHashCode,
+      HashCode parentComponentHashCode);
+
+  public abstract HashCode getEventHash(EventModel evtModel);
+
+  public abstract HashCode add(HashCode o1, HashCode o2);
 }

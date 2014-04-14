@@ -56,7 +56,7 @@ public abstract class GUIModelExtractor {
   public abstract GUIModel getGUIModel(boolean includeDisabledWidget);
 
   public void extractComponentModel(GUIModel rootNode, Object aComponent, boolean isModalBlocked, boolean isVisible,
-      boolean includeDisabledWidget, HashCode hashCode) {
+      boolean includeDisabledWidget, HashCode windowHashCode, HashCode componentHashCode) {
     GUIModel childNode;
     ComponentModel model = createModel(aComponent);
     childNode = new GUIModel((Object) model);
@@ -65,10 +65,10 @@ public abstract class GUIModelExtractor {
     model.setWindowModel(getWindowModel(model));
 
     // extract info.
-    HashCode modelHashCode = extractProperties(model, hashCode); // extract properties
+    componentHashCode = extractProperties(childNode, model, windowHashCode, componentHashCode); // extract properties
 
     if (isWindow(aComponent))
-      hashCode = modelHashCode; // propagate only window's hash code to children.
+      windowHashCode = componentHashCode;
 
     boolean isEnabled = !"false".equals(model.get("enabled"));
 
@@ -91,7 +91,8 @@ public abstract class GUIModelExtractor {
       // traverse accessible children
       List<Object> childComponents = getAccessibleChilds(model);
       for (Object component : childComponents) {
-        extractComponentModel(childNode, component, isModalBlocked, isVisible, includeDisabledWidget, hashCode);
+        extractComponentModel(childNode, component, isModalBlocked, isVisible, includeDisabledWidget, windowHashCode,
+            componentHashCode);
       }
     }
 
@@ -156,7 +157,8 @@ public abstract class GUIModelExtractor {
     }
   }
 
-  public abstract HashCode extractProperties(ComponentModel componentModel, HashCode hashCode);
+  public abstract HashCode extractProperties(GUIModel node, ComponentModel componentModel, HashCode windowHashCode,
+      HashCode componentHashCode);
 
   /**
    * create a tree which event nodes are added. 'root' may be modified.
@@ -189,8 +191,6 @@ public abstract class GUIModelExtractor {
     }
   }
 
-  
-
   public abstract WindowModel extractWindowInfo(Object window);
 
   public abstract boolean isAvailable(WindowModel windowModel);
@@ -198,6 +198,7 @@ public abstract class GUIModelExtractor {
   public abstract boolean isModalBlocked(WindowModel windowModel);
 
   public abstract byte[] getImageBuffer(WindowModel element);
+
   public abstract IDGenerator getDefaultIDGenerator();
 
   public abstract List<String> getPropertyList();

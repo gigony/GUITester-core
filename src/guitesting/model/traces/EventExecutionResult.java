@@ -21,6 +21,7 @@
  ******************************************************************************/
 package guitesting.model.traces;
 
+import guitesting.model.ITestCaseElement;
 import guitesting.model.event.EventModel;
 import guitesting.ui.GUITester;
 
@@ -35,7 +36,7 @@ import javax.swing.SwingUtilities;
 
 import com.google.common.hash.HashCode;
 
-public class EventExecutionResult implements Serializable {
+public class EventExecutionResult implements Serializable, ITestCaseElement{
   private static final long serialVersionUID = 1L;
 
   public static final int EVENT_SUCCEED = 1;
@@ -264,5 +265,37 @@ public class EventExecutionResult implements Serializable {
 
   public void setGuiStateHashingValue(int index, String guiStateHashingValue) {
     this.guiStateHashingValue[index] = guiStateHashingValue;
+  }
+
+  @Override
+  public String getEventName() {
+    return String.format("%s(%s)", getComponentName(), getEventTypeName());
+  }
+
+  @Override
+  public boolean isMatched(EventModel eventModel) {
+    if (!getHashCode().equals(eventModel.getHashCode()))
+      return false;
+
+    if (!getEventTypeName().equals(eventModel.getEventTypeName())) {
+      return false;
+    }
+
+    if (!getWindowName().equals(eventModel.getWindowModel().get("title")))
+      return false;
+
+    if (!getComponentName().equals(eventModel.getComponentModel().get("title")))
+      return false;
+
+    if (!getWindowHashCode().equals(HashCode.fromString(eventModel.getWindowModel().get("id"))))
+      return false;
+
+    if (!getComponentHashCode().equals(HashCode.fromString(eventModel.getComponentModel().get("id"))))
+      return false;
+
+    if (getValueHashCode() != eventModel.getValueHash())
+      return false;
+
+    return true;
   }
 }

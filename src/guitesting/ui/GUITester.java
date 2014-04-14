@@ -133,15 +133,23 @@ public class GUITester {
     return uiAction;
   }
 
+  public GUITesterFrame getUi() {
+    return ui;
+  }
+
   public void launchGUITesterUI() {
     launchGUITesterUI(null);
   }
 
   public void launchGUITesterUI(UIAction uiAction) {
+    launchGUITesterUI(uiAction, TestProperty.propertyStore.getBoolean("guitester.gui", false));
+  }
+
+  public void launchGUITesterUI(UIAction uiAction, boolean showUI) {
     setUIAction(uiAction);
     // if we use GUI interface
 
-    if (TestProperty.propertyStore.getBoolean("guitester.gui", false)) {
+    if (showUI) {
       if (this.ui != null) {
         this.ui.dispose();
         this.ui = null;

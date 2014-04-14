@@ -4,7 +4,11 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Properties;
+
+import com.google.common.base.Joiner;
 
 public class KeyValueStore extends Properties {
   private static final long serialVersionUID = 1L;
@@ -28,22 +32,27 @@ public class KeyValueStore extends Properties {
   }
 
   private void parsingArgs(String data) {
-    for (String item : data.split("&")) {
+    for (String item : data.split(",")) {
+      item = item.trim();
+      if (item.equals(""))
+        continue;
       int pivot = item.indexOf("=");
       if (pivot == -1)
         continue;
       String property = item.substring(0, pivot).toLowerCase();
-      String value = item.substring(pivot + 1);      
+      String value = item.substring(pivot + 1);
       put(property, value);
     }
   }
 
-  public void setDefaultProperty(Properties property){
-      this.defaults = property;
+  public void setDefaultProperty(Properties property) {
+    this.defaults = property;
   }
-  public Properties getDefaultProperty(){
+
+  public Properties getDefaultProperty() {
     return defaults;
   }
+
   public int getInt(String key) {
     return getInt(key, -1);
   }
@@ -88,7 +97,7 @@ public class KeyValueStore extends Properties {
       return Float.parseFloat(value);
     return defaultValue;
   }
-  
+
   public boolean getBoolean(String key) {
     return getBoolean(key, false);
   }
@@ -100,28 +109,29 @@ public class KeyValueStore extends Properties {
       return Boolean.parseBoolean(value);
     return defaultValue;
   }
-  
-  public void set(String key, String value){
+
+  public void set(String key, String value) {
     key = key.toLowerCase();
     setProperty(key, value);
   }
-  public void setIfNull(String key, String value){    
+
+  public void setIfNull(String key, String value) {
     key = key.toLowerCase();
-    if(getProperty(key)==null)
-      setProperty(key,value);
+    if (getProperty(key) == null)
+      setProperty(key, value);
   }
-  public String getNsetIfNull(String key, String newVal){    
+
+  public String getNsetIfNull(String key, String newVal) {
     key = key.toLowerCase();
     String val = getProperty(key);
-    if(val==null){
-      setProperty(key,newVal);
+    if (val == null) {
+      setProperty(key, newVal);
       return newVal;
-    } else{
+    } else {
       return val;
     }
   }
-  
-  
+
   public void saveProperties(File testPropertyFile) {
     try {
       // File testPropertyFile = TestProperty.getFile("guitester.default_properties");
@@ -132,7 +142,15 @@ public class KeyValueStore extends Properties {
       e.printStackTrace();
     }
   }
-  
-  
+
+  @Override
+  public synchronized String toString() {
+    ArrayList<String> keyValuePairList = new ArrayList<String>(size());
+    for (Object key : keySet()) {
+      keyValuePairList.add(String.format("%s=%s", key, get(key)));
+    }
+    Collections.sort(keyValuePairList);
+    return Joiner.on(",").join(keyValuePairList);
+  }
 
 }

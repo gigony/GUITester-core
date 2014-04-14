@@ -55,6 +55,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.ListSelectionModel;
+import javax.swing.SwingUtilities;
 import javax.swing.TransferHandler;
 import javax.swing.table.TableModel;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -330,17 +331,30 @@ public class ComponentTreePane extends JXTitledPanel implements MouseListener {
    * 
    * @param model
    */
-  public void updateGUIModel(GUIModel model) {
+  public void updateGUIModel(final GUIModel model) {
     // !!! be careful not to modify original model in this implementation. !!!
-    GUIModel duplicatedModel = JFCUtil.shallowTreeCopy(model); // copy GUI model to be used to display tree
-    if (showOnlyEvent.isSelected())
-      duplicatedModel = createEventGUIModel(duplicatedModel);
-    else
-      GUIModelExtractor.addEventNode(duplicatedModel);
-    TreeTableModel treeModel = new DefaultTreeTableModel(duplicatedModel);
-    treeTable.setTreeTableModel(treeModel);
-    expandOnlyEvents(treeModel); // expand only events
-    treeTable.packColumn(treeTable.getHierarchicalColumn(), -1);
+    try {
+      SwingUtilities.invokeLater(new Runnable() {
+
+        @Override
+        public void run() {
+          GUIModel duplicatedModel = JFCUtil.shallowTreeCopy(model); // copy GUI model to be used to display tree
+          if (showOnlyEvent.isSelected())
+            duplicatedModel = createEventGUIModel(duplicatedModel);
+          else
+            GUIModelExtractor.addEventNode(duplicatedModel);
+          TreeTableModel treeModel = new DefaultTreeTableModel(duplicatedModel);
+          treeTable.setTreeTableModel(treeModel);
+          expandOnlyEvents(treeModel); // expand only events
+          treeTable.packColumn(treeTable.getHierarchicalColumn(), -1);
+
+        }
+
+      });
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
   }
 
   /**

@@ -60,13 +60,13 @@ import com.google.common.hash.HashCode;
 
 public class GUIModelExtractor_JFC extends GUIModelExtractor {
   private static List<String> propertyList = Arrays.asList("title", "id", "class", "componentIndex", "name",
-      "actioncommand", "role", "actionlisteners", "ancestorlisteners", "windowlisteners", "componentlisteners",
-      "containerlisteners", "focuslisteners", "hierarchyboundslisteners", "hierarchylisteners", "inputmethodlisteners",
-      "keylisteners", "mouselisteners", "mousemotionlisteners", "mousewheellisteners", "propertychangelisteners",
-      "vetoablechangelisteners", "modalblocked", "layout", "x", "y", "width", "height", "opaque", "enabled",
-      "selected", "displayable", "editable", "visible", "focusable", "focustraversable", "showing", "cursorset",
-      "componentcount", "alignmentx", "alignmenty", "backgroundset", "foregroundset", "background", "foreground",
-      "font", "fontset", "text", "invokercomponent", "tooltiptext");
+      "actioncommand", "role", "group_id", "actionlisteners", "ancestorlisteners", "windowlisteners",
+      "componentlisteners", "containerlisteners", "focuslisteners", "hierarchyboundslisteners", "hierarchylisteners",
+      "inputmethodlisteners", "keylisteners", "mouselisteners", "mousemotionlisteners", "mousewheellisteners",
+      "propertychangelisteners", "vetoablechangelisteners", "modalblocked", "layout", "x", "y", "width", "height",
+      "opaque", "enabled", "selected", "displayable", "editable", "visible", "focusable", "focustraversable",
+      "showing", "cursorset", "componentcount", "alignmentx", "alignmenty", "backgroundset", "foregroundset",
+      "background", "foreground", "font", "fontset", "text", "invokercomponent", "tooltiptext");
   // private static List<String> GUIPropertyGetterList = Arrays.asList(
   // "<java.awt.event.ActionEvent: java.lang.String getActionCommand()>", "<java.awt.Component: boolean isEnabled()>");
 
@@ -90,7 +90,7 @@ public class GUIModelExtractor_JFC extends GUIModelExtractor {
         // don't get the information if the window is not displayable
         if (window.isDisplayable() && window.isVisible())
           extractComponentModel(rootNode, window, JFCUtil.isModalBlocked(window), true, includeDisabledWidget,
-              HashCode.fromInt(0));
+              HashCode.fromInt(0),HashCode.fromInt(0));
       }
     }
 
@@ -110,7 +110,7 @@ public class GUIModelExtractor_JFC extends GUIModelExtractor {
       if (w.isDisplayable() && w.isVisible()) {
         WindowModel model = (WindowModel) createModel(w);
         model.setWindowModel(getWindowModel(model));
-        extractProperties(model, HashCode.fromInt(0)); // extract properties
+        extractProperties(null, model, HashCode.fromInt(0),HashCode.fromInt(0)); // extract properties
 
         if (windowModel.get("id").equals(model.get("id"))) {
           return true;
@@ -128,7 +128,7 @@ public class GUIModelExtractor_JFC extends GUIModelExtractor {
       if (w.isDisplayable() && w.isVisible()) {
         WindowModel model = (WindowModel) createModel(w);
         model.setWindowModel(GUIModelExtractor.getWindowModel(model));
-        extractProperties(model, HashCode.fromInt(0)); // extract properties
+        extractProperties(null, model, HashCode.fromInt(0),HashCode.fromInt(0)); // extract properties
 
         if (windowModel.get("id").equals(model.get("id"))) {
           return "true".equals(model.get("modalblocked"));
@@ -152,7 +152,7 @@ public class GUIModelExtractor_JFC extends GUIModelExtractor {
       isVisible = true;
     boolean isModalBlocked = JFCUtil.isModalBlocked(window);
     WindowModel winModel = new WindowModel(window);
-    extractProperties(winModel, HashCode.fromInt(0)); // extract properties
+    extractProperties(null, winModel, HashCode.fromInt(0), HashCode.fromInt(0)); // extract properties
 
     if (!isModalBlocked && isVisible) // 2011-11-21 add isVisible property
       GUIModelExtractor.extractEvents(winModel); // extract events
@@ -161,7 +161,8 @@ public class GUIModelExtractor_JFC extends GUIModelExtractor {
   }
 
   @Override
-  public HashCode extractProperties(ComponentModel componentModel, HashCode hashCode) {
+  public HashCode extractProperties(GUIModel node, ComponentModel componentModel, HashCode windowHashCode,
+      HashCode componentHashCode) {
     Accessible aComponent = (Accessible) componentModel.getRef();
     Map<String, String> properties = componentModel.getProperties();
 
@@ -210,10 +211,12 @@ public class GUIModelExtractor_JFC extends GUIModelExtractor {
     // replace strings
     TestProperty.eventFilter.replaceComponentString(componentModel);
 
-    hashCode = GUITester.getInstance().getIdGenerator().getComponentHash(componentModel, hashCode);
-    properties.put("id", "" + hashCode.toString()); // insert 'id' property explicitly
+    componentHashCode = GUITester.getInstance().getIdGenerator().getComponentHash(componentModel, windowHashCode,componentHashCode);
+    properties.put("id", "" + componentHashCode.toString()); // insert 'id' property explicitly
+    // insert 'group_id' property explicitly
+    properties.put("group_id", JFCUtil.getComponentGroup(node, componentModel));
 
-    return hashCode;
+    return componentHashCode;
   }
 
   public String convertToString(Object comp, String key, Object value) {

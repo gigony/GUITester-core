@@ -92,14 +92,18 @@ public class TestLogger {
   }
 
   public static void debug_(String format, Object... args) {
-    debugCache.append(String.format(format, args));
+    if (TestProperty.isDebugMode)
+      debugCache.append(String.format(format, args));
   }
 
   public static void debug(String format, Object... args) {
-    debugCache.append(String.format(format, args));
-    log.debug(debugCache.toString());
-    if (debugCache.length() > 0)
-      debugCache = new StringBuilder();
+    if (TestProperty.isDebugMode) {
+      debugCache.append(String.format(format, args));
+      log.debug(debugCache.toString());
+      if (debugCache.length() > 0)
+        debugCache = new StringBuilder();
+    }
+
   }
 
   public static void error_(String format, Object... args) {

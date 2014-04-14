@@ -36,15 +36,44 @@ import com.google.common.hash.Hashing;
 
 public class IDGenerator_JFC extends IDGenerator {
   final static List<String> structuralPropertyList = Arrays.asList("class", "actioncommand", "actionlisteners",
-      "mouselisteners");
+      "mouselisteners", "componentIndex"); // 2014-04-13: 'componentIndex' is added for feedback directed technique
 
   HashFunction hf = Hashing.md5();
 
   @Override
-  public HashCode getComponentHash(ComponentModel src, HashCode parentHashCode) {
+  public HashCode getComponentHash(ComponentModel src, HashCode windowHashCode, HashCode parentComponentHashCode) {
+    return getComponentHash_old(src, windowHashCode, parentComponentHashCode);
+  }
+
+  public HashCode getComponentHash_old(ComponentModel src, HashCode windowHashCode, HashCode parentComponentHashCode) {
     Hasher hasher = hf.newHasher();
-    if (parentHashCode != null)
-      hasher.putBytes(parentHashCode.asBytes());
+
+    // 2014-04-13: deleted for feedback directed technique
+    // if (windowHashCode != null)
+    // hasher.putBytes(windowHashCode.asBytes());
+
+    // 2014-04-13: added for feedback directed technique
+    if (parentComponentHashCode != null)
+      hasher.putBytes(parentComponentHashCode.asBytes());
+
+    Map<String, String> srcProperties = src.getProperties();
+    hasher.putString(srcProperties.get("title"), Charsets.UTF_8);
+
+    for (String key : structuralPropertyList) {
+      String value = srcProperties.get(key);
+      if (value != null)
+        hasher.putString(value, Charsets.UTF_8);
+      else
+        hasher.putBoolean(false);
+    }
+    return hasher.hash();
+  }
+
+  public HashCode getComponentHash_new(ComponentModel src, HashCode windowHashCode, HashCode parentComponentHashCode) {
+    Hasher hasher = hf.newHasher();
+
+    if (windowHashCode != null)
+      hasher.putBytes(windowHashCode.asBytes());
 
     Map<String, String> srcProperties = src.getProperties();
     hasher.putString(srcProperties.get("title"), Charsets.UTF_8);

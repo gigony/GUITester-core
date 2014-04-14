@@ -1,7 +1,11 @@
 package guitesting.util;
 
+import java.io.File;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeoutException;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 public class IOUtilTest {
@@ -28,5 +32,30 @@ public class IOUtilTest {
       System.out.println(count[i]);
     }
   }
+  
+  
+  @Test
+  public void testGetClassFileList() {
+    List<String> list = IOUtil.getClassNameList(new File("/Users/gigony/Repository/github/GUITester-feedback/bin"));
+    for(String item:list){
+      System.out.println(item);
+    }
+  }
+  
+  @Test
+  public void testExecuteCommand(){
+      ArrayList<String> command = new ArrayList<String>();
+      command.add("sleep");
+      command.add("1");
+      try {
+        IOUtil.executeCommand(command, ".",900);
+      } catch (TimeoutException e) {
+        System.out.println("Time out!");
+        return;
+      }
+      Assert.fail();    
+  }
+  
+  
 
 }

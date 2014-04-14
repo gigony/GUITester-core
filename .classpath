@@ -11,5 +11,6 @@
 	<classpathentry kind="lib" path="lib/xpp3_min-1.1.4c.jar"/>
 	<classpathentry kind="lib" path="lib/xstream-1.4.1.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
+	<classpathentry kind="lib" path="lib/javassist-3.18.0-GA.jar" sourcepath="/Users/gigony/Repository/github/GUITester-feedback/lib/javassist-3.18.0-GA/src"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

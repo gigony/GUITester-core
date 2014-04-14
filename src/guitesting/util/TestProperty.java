@@ -39,6 +39,7 @@ import guitesting.engine.appmanager.ApplicationManager;
 import guitesting.engine.componentnotifier.ComponentNotifier;
 import guitesting.engine.delaymanager.DelayManager;
 import guitesting.engine.idgenerator.IDGenerator;
+import guitesting.engine.instrumentation.ExtendedClassFileTransformer;
 import guitesting.engine.modelextractor.GUIModelExtractor;
 import guitesting.engine.strategy.AbstractStrategy;
 import guitesting.engine.windowmonitor.WindowMonitor;
@@ -53,12 +54,15 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.instrument.ClassFileTransformer;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.Set;
 
 import javax.swing.UIManager;
 
@@ -75,6 +79,7 @@ public class TestProperty {
   public static final String FolderName_Source = "src";
   public static final String FolderName_Configuration = "config";
   public static final String FolderName_Instrumented = "instrumented";
+  public static final String FolderName_Transformed = "transformed";
   public static final String FolderName_Libraries = "lib";
   public static final String FolderName_AUTExtLibraries = "aut_ext";
   public static final String FolderName_PlugIns = "plugins";
@@ -99,6 +104,8 @@ public class TestProperty {
   public static final String PathSeperator = System.getProperty("path.separator");
   public static final String CoverageFileName = "coberturacov.ser";
   public static final String CleanCoverageFileName = "cleanCoverage.ser";
+
+  public static boolean isDebugMode = false;
 
   @Option(name = "-platform", usage = "UI Platform")
   private static String UIPlatform;
@@ -172,6 +179,8 @@ public class TestProperty {
   @Argument
   private static List<String> arguments = new ArrayList<String>();
 
+  public static String[] originalArgs = new String[0];
+
   public static KeyValueStore propertyStore = new KeyValueStore();
 
   public static ApplicationClassLoader appClassLoader = null;
@@ -192,7 +201,17 @@ public class TestProperty {
     File log4jPropertyFile = getFile("guitester.log4j_properties");
     if (log4jPropertyFile != null && log4jPropertyFile.exists()) {
       PropertyConfigurator.configure(log4jPropertyFile.getAbsolutePath());
+      TestLogger.info("Log4j configuration file is loaded from %s", log4jPropertyFile.getAbsolutePath());
     }
+  }
+
+  public static void setOriginalArgs(String[] args) {
+    if (args != null)
+      originalArgs = args;
+  }
+
+  public static String[] getOriginalArgs() {
+    return originalArgs;
   }
 
   @Deprecated
@@ -386,22 +405,59 @@ public class TestProperty {
     File log4jPropertyFile = getFile("project.log4j_properties");
     if (log4jPropertyFile != null && log4jPropertyFile.exists()) {
       PropertyConfigurator.configure(log4jPropertyFile.getAbsolutePath());
-      TestLogger.debug("log4j configuration file is reloaded from %s", log4jPropertyFile.getAbsolutePath());
+      TestLogger.warn("log4j configuration file is reloaded from %s", log4jPropertyFile.getAbsolutePath());
     }
 
     TestLogger.debug("Test properties:  %s", propertyStore.toString());
+
+    // exceptional case..
+    if (propertyStore.getBoolean("guitester.debug", false)) {
+      TestProperty.isDebugMode = true;
+    }
 
   }
 
   private static void initializeAUT() {
     TestLogger.debug("Initialize AUT:");
+
     appClassLoader = new ApplicationClassLoader(Thread.currentThread().getContextClassLoader());
 
-    // add plugins folder
-    appClassLoader.addClassPath(getFolder("instrumented")); // instrumented folder
+    // add class paths
+    if (propertyStore.getBoolean("instrument.use_transformed", false))
+      appClassLoader.addClassPath(getFolder("transformed")); // transformed folder
+    if (propertyStore.getBoolean("instrument.use_instrumented", false))
+      appClassLoader.addClassPath(getFolder("instrumented")); // instrumented folder
     appClassLoader.addClassPath(getFolder("binary")); // binary folder
-    appClassLoader.addClassFolder(getFolder("library")); // binary folder
+    appClassLoader.addClassFolder(getFolder("library")); // library folder
+    appClassLoader.addClassPath(getFolder("guitester.aut_ext_lib")); // AUT's external lib
     appClassLoader.addClassFolder(getFolder("guitester.aut_ext_lib")); // AUT's external lib
+
+    // dynamic instrumentation setup
+    if (propertyStore.getBoolean("instrument.use_dynamic_transform", false)) {
+      String classTransformerName = propertyStore.get("instrument.dynamic_transformer", null);
+      if (classTransformerName != null) {
+        try {
+          TestLogger.debug("\tSet bytecode transformer: %s (in %s)", classTransformerName,
+              getFolder("guitester.aut_ext_lib").toURI().toURL().toString());
+
+          ClassFileTransformer classFileTransformer = appClassLoader.setNGetTransformer(
+              getFolder("guitester.aut_ext_lib").toURI().toURL(), classTransformerName);
+
+          // set analysis scope only to classes in 'bin' folder, if possible.
+          if (classFileTransformer instanceof ExtendedClassFileTransformer) {
+            TestLogger.debug("Set analysis scope to %s", getFolder("binary").getAbsolutePath());
+            Set<String> scopeSet = new HashSet<String>(IOUtil.getClassNameList(getFolder("binary")));
+            ExtendedClassFileTransformer transformer = ((ExtendedClassFileTransformer) classFileTransformer);
+            transformer.setAnalysisScope(scopeSet);
+            transformer.setVariable("project", getFolder("project"));
+          }
+
+        } catch (MalformedURLException e) {
+          e.printStackTrace();
+        }
+      }
+    }
+
     TestLogger
         .debug("\t%d class paths are loaded for application class loader.", appClassLoader.getAddedPaths().size());
     TestLogger.debug("");
@@ -451,7 +507,7 @@ public class TestProperty {
         }
 
       } catch (Throwable e) {
-        TestLogger.error(e.getMessage());
+        // TestLogger.error(e.getMessage());
         e.printStackTrace();
       }
     }
@@ -573,8 +629,8 @@ public class TestProperty {
           guiTesterPath = guiTesterPath.substring(0, guiTesterPath.length() - 4);
         } else if (guiTesterPath.replace('\\', '/').endsWith("guitesting/main")) {
           guiTesterPath = guiTesterPath.substring(0, guiTesterPath.length() - 16);
-        } else if (guiTesterPath.endsWith(".jar")){
-          guiTesterPath = guiTesterPath.replace('\\', '/').substring(0,guiTesterPath.lastIndexOf("/"));
+        } else if (guiTesterPath.endsWith(".jar")) {
+          guiTesterPath = guiTesterPath.replace('\\', '/').substring(0, guiTesterPath.lastIndexOf("/"));
         }
         return new File(guiTesterPath);
       }
@@ -595,6 +651,8 @@ public class TestProperty {
       return new File(getFolder("project"), FolderName_Configuration);
     } else if ("instrumented".equals(name)) {
       return new File(getFolder("project"), FolderName_Instrumented);
+    } else if ("transformed".equals(name)) {
+      return new File(getFolder("project"), FolderName_Transformed);
     } else if ("library".equals(name)) {
       return new File(getFolder("project"), FolderName_Libraries);
     } else if ("plugins".equals(name)) {
@@ -656,4 +714,5 @@ public class TestProperty {
     throw new RuntimeException("No proper argument in getFile(String) for '" + name + "'");
 
   }
+
 }

@@ -51,6 +51,8 @@ public class EventFilter {
         return false;
 
       for (EventModel filterItem : filterList) {
+        if (filterItem == null)
+          continue;
         if (!isComponentMatched(filterItem.getWindowModel(), windowModel)) // window model should be matched
           continue;
         if (!isComponentMatched(filterItem.getComponentModel(), componentModel)) // component model should be matched
